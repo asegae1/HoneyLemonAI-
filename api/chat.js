@@ -1,12 +1,26 @@
-export default async function handler(req, res) {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(req.body)
-  });
-  const data = await response.json();
-  res.status(200).json(data);
+async function send() {
+  const p = document.getElementById('input').value;
+  const out = document.getElementById('out');
+  out.innerText = "考え中...";
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: p })
+    });
+    
+    const data = await res.json();
+
+    // エラーメッセージが返ってきた場合に表示する
+    if (data.error) {
+      out.innerText = "Error: " + data.error.message;
+      return;
+    }
+
+    out.innerText = data.choices[0].message.content;
+  } catch (e) {
+    out.innerText = "通信エラーが発生しました。";
+    console.error(e);
+  }
 }
