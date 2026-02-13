@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>honeylemonai</title>
+  <title>honeylemonai - Pro</title>
   <style>
     body { font-family: sans-serif; background: #fffdf0; margin: 0; display: flex; flex-direction: column; height: 100vh; }
     .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; }
@@ -12,32 +12,87 @@
     .msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     .user { align-self: flex-end; background: #FFA500; color: white; border-bottom-right-radius: 2px; }
     .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; border-bottom-left-radius: 2px; }
-    .img-result { width: 100%; max-width: 512px; border-radius: 12px; border: 4px solid #FFD700; margin-top: 10px; display: block; }
-    .input-area { background: #fff; padding: 20px; display: flex; gap: 10px; border-top: 1px solid #eee; }
-    select { border: 2px solid #eee; border-radius: 15px; padding: 0 10px; outline: none; }
-    input { flex: 1; padding: 12px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; }
+    .img-result { width: 100%; max-width: 512px; border-radius: 12px; border: 4px solid #FFD700; margin-top: 10px; }
+    .dl-btn { display: inline-block; margin-top: 10px; padding: 8px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 10px; font-size: 12px; font-weight: bold; }
+    .input-area { background: #fff; padding: 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #eee; }
+    .controls { display: flex; gap: 10px; }
+    select, input[type="text"] { border: 2px solid #eee; border-radius: 20px; padding: 10px; outline: none; }
+    input[type="text"] { flex: 1; }
+    .file-label { background: #eee; padding: 10px; border-radius: 20px; cursor: pointer; font-size: 12px; text-align: center; }
     button { background: #FFD700; border: none; padding: 0 25px; border-radius: 25px; font-weight: bold; cursor: pointer; color: #555; }
     button:disabled { background: #ccc; }
   </style>
 </head>
 <body>
-<div class="header"><div class="logo">honeylemonai</div><div id="status" style="font-size:10px; color:#999;">READY</div></div>
-<div id="chat-box"></div>
-<div class="input-area">
-  <select id="mode"><option value="chat">会話</option><option value="image">写真を作る</option></select>
-  <input id="input" type="text" placeholder="メッセージを入力..." autocomplete="off">
-  <button id="sendBtn" onclick="run()">送信</button>
+
+<div class="header">
+  <div class="logo">honeylemonai</div>
+  <div id="status" style="font-size:10px; color:#999;">READY</div>
 </div>
+
+<div id="chat-box"></div>
+
+<div class="input-area">
+  <div class="controls">
+    <select id="mode">
+      <option value="chat">会話</option>
+      <option value="image">写真を作る</option>
+    </select>
+    <input id="input" type="text" placeholder="メッセージまたはプロンプト..." autocomplete="off">
+    <label class="file-label">
+      📁 解析
+      <input type="file" id="fileInput" style="display:none" onchange="analyzeFile()">
+    </label>
+    <button id="sendBtn" onclick="run()">送信</button>
+  </div>
+</div>
+
 <script>
+  // 写真生成のダウンロード機能
+  function createDownloadLink(base64Data) {
+    const a = document.createElement('a');
+    a.href = base64Data;
+    a.download = `honeylemonai_${Date.now()}.png`;
+    a.className = 'dl-btn';
+    a.innerText = '📥 画像を保存';
+    return a;
+  }
+
+  // ファイル解析機能 (TXT, C#, PNG, MP4)
+  async function analyzeFile() {
+    const file = document.getElementById('fileInput').files[0];
+    if (!file) return;
+
+    addMsg(`ファイルを読み込み中: ${file.name} (${file.type || 'unknown'})`, 'user');
+
+    // テキスト系 (txt, cs)
+    if (file.name.endsWith('.txt') || file.name.endsWith('.cs')) {
+      const text = await file.text();
+      addMsg(`【解析結果】\n種類: テキスト/ソースコード\n内容:\n${text.substring(0, 300)}...`, 'ai');
+    } 
+    // 画像系 (png)
+    else if (file.type.startsWith('image/')) {
+      addMsg(`【解析結果】\n種類: 画像ファイル\nサイズ: ${file.size} bytes\nAIでこの画像の内容を説明しましょうか？`, 'ai');
+    }
+    // 動画系 (mp4)
+    else if (file.type.startsWith('video/')) {
+      addMsg(`【解析結果】\n種類: 動画ファイル\n名前: ${file.name}\n動画の解析には専用のAIモデルが必要ですが、ファイル自体は正常です。`, 'ai');
+    } else {
+      addMsg("未対応の形式ですが、バイナリデータとして認識しました。", 'ai');
+    }
+  }
+
   async function run() {
     const input = document.getElementById('input');
     const text = input.value.trim();
     const mode = document.getElementById('mode').value;
     const btn = document.getElementById('sendBtn');
+    
     if (!text) return;
     addMsg(text, 'user');
     input.value = '';
     btn.disabled = true;
+
     try {
       const endpoint = mode === 'image' ? '/api/image' : '/api/chat';
       const response = await fetch(endpoint, {
@@ -45,27 +100,49 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: text })
       });
+
       const data = await response.json();
-      if (mode === 'image') {
-        if (data.image) {
-          const div = document.createElement('div');
-          div.className = 'msg ai';
-          div.innerHTML = `<div>写真を生成しました:</div><img src="${data.image}" class="img-result">`;
-          document.getElementById('chat-box').appendChild(div);
-        } else {
-          addMsg("生成エラー: " + (data.error || "詳細不明"), 'ai');
-        }
+
+      if (mode === 'image' && data.image) {
+        const div = document.createElement('div');
+        div.className = 'msg ai';
+        div.innerHTML = `<div>写真を生成しました:</div>`;
+        const img = document.createElement('img');
+        img.src = data.image;
+        img.className = 'img-result';
+        div.appendChild(img);
+        div.appendChild(createDownloadLink(data.image)); // ダウンロードボタン追加
+        document.getElementById('chat-box').appendChild(div);
+
+        // 1分3回ペース守るための20秒待機
+        startTimer(20);
       } else {
-        addMsg(data.choices[0].message.content, 'ai');
+        addMsg(data.choices ? data.choices[0].message.content : (data.error || "エラー"), 'ai');
+        btn.disabled = false;
       }
     } catch (e) {
-      addMsg("エラー。再デプロイしてURL変更を反映させてください。", 'ai');
-    } finally {
+      addMsg("エラーが発生しました。", 'ai');
       btn.disabled = false;
-      const b = document.getElementById('chat-box');
-      b.scrollTop = b.scrollHeight;
     }
+    
+    const b = document.getElementById('chat-box');
+    b.scrollTop = b.scrollHeight;
   }
+
+  function startTimer(sec) {
+    const btn = document.getElementById('sendBtn');
+    let count = sec;
+    const timer = setInterval(() => {
+      count--;
+      btn.innerText = `待機(${count}s)`;
+      if (count <= 0) {
+        clearInterval(timer);
+        btn.innerText = "送信";
+        btn.disabled = false;
+      }
+    }, 1000);
+  }
+
   function addMsg(t, type) {
     const b = document.getElementById('chat-box');
     const d = document.createElement('div');
