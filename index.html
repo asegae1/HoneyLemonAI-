@@ -2,55 +2,51 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; background: #fffdf0; margin: 0; display: flex; flex-direction: column; height: 100vh; color: #333; }
-    /* ロゴ: CSSのみ */
+    /* 既存のスタイルを継承しつつツール用を追加 */
+    body { font-family: sans-serif; background: #fffdf0; margin: 0; display: flex; flex-direction: column; height: 100vh; }
     .header { background: #fff; padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; }
     .logo { font-weight: 900; font-size: 22px; background: linear-gradient(90deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-left: 6px solid #FFD700; padding-left: 12px; }
-    
-    /* 設定パネル */
-    .config { background: #f9f9f9; padding: 10px 20px; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 15px; font-size: 12px; align-items: center; }
-    .config input, .config select { border: 1px solid #ddd; border-radius: 4px; padding: 3px; }
-
-    /* チャットエリア */
-    #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-    .msg { max-width: 85%; padding: 10px 16px; border-radius: 18px; font-size: 14px; line-height: 1.6; word-wrap: break-word; }
+    .config { background: #fdfae6; padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 15px; font-size: 11px; align-items: center; border-bottom: 1px solid #eee; }
+    #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .msg { max-width: 85%; padding: 10px 15px; border-radius: 15px; font-size: 14px; line-height: 1.5; }
     .user { align-self: flex-end; background: #FFA500; color: white; border-bottom-right-radius: 2px; }
-    .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; border-bottom-left-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-
-    /* 入力エリア */
+    .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; border-bottom-left-radius: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); white-space: pre-wrap; }
     .input-area { background: #fff; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #eee; }
-    #input { flex: 1; padding: 12px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; transition: 0.3s; }
-    #input:focus { border-color: #FFD700; }
-    button { background: #FFD700; border: none; padding: 0 25px; border-radius: 25px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    button:disabled { background: #ccc; cursor: not-allowed; }
-    .timer { color: #e67e22; font-weight: bold; min-width: 30px; }
+    input[type="text"] { flex: 1; padding: 10px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; }
+    button { background: #FFD700; border: none; padding: 0 25px; border-radius: 25px; font-weight: bold; cursor: pointer; }
+    button:disabled { background: #ccc; }
   </style>
 </head>
 <body>
 
 <div class="header">
   <div class="logo">honeylemonai</div>
-  <div id="status" style="font-size: 10px; color: #999;">Ready</div>
+  <div id="status" style="font-size: 10px; color: #aaa;">Ready</div>
 </div>
 
 <div class="config">
-  <label>🤖 <select id="model">
-    <option value="llama-3.3-70b-versatile">Llama 3.3 (最強)</option>
-    <option value="llama-3.1-8b-instant">Llama 3.1 (爆速)</option>
-    <option value="mixtral-8x7b-32768">Mixtral</option>
-    <option value="gemma2-9b-it">Gemma2</option>
-  </select></label>
-  <label>📏 長さ: <input id="maxChars" type="range" min="1" max="500" value="100" oninput="vMax.innerText=this.value"><span id="vMax">100</span></label>
-  <label>⏳ 制限: <input id="rate" type="number" value="3" style="width:35px;">s</label>
-  <span id="countdown" class="timer"></span>
+  <label>🛠️ ツール: 
+    <select id="tool">
+      <option value="chat">会話モード</option>
+      <option value="coder">コード作成</option>
+    </select>
+  </label>
+  <label>🤖 モデル: 
+    <select id="model">
+      <option value="llama-3.3-70b-versatile">Llama 3.3 (70B)</option>
+      <option value="llama-3.1-8b-instant">Llama 3.1 (8B)</option>
+    </select>
+  </label>
+  <label>📏 長さ: <input id="maxChars" type="range" min="1" max="500" value="150" oninput="vM.innerText=this.value"><span id="vM">150</span></label>
+  <label>⏳ 制限: <input id="rate" type="number" value="3" style="width:30px;">s</label>
+  <span id="countdown"></span>
 </div>
 
 <div id="chat-box"></div>
 
 <div class="input-area">
-  <input id="input" type="text" placeholder="AIに相談する...">
+  <input id="input" type="text" placeholder="AIにメッセージを送る...">
   <button id="btn" onclick="send()">送信</button>
 </div>
 
@@ -58,16 +54,15 @@
   let lastSent = 0;
   function updateUI() {
     const wait = document.getElementById('rate').value * 1000;
-    const remaining = Math.ceil((lastSent + wait - Date.now()) / 1000);
+    const rem = Math.ceil((lastSent + wait - Date.now()) / 1000);
     const btn = document.getElementById('btn');
-    const timer = document.getElementById('countdown');
-    if (remaining > 0) {
+    if (rem > 0) {
       btn.disabled = true;
-      timer.innerText = remaining + "s";
+      document.getElementById('countdown').innerText = rem + "s";
       setTimeout(updateUI, 1000);
     } else {
       btn.disabled = false;
-      timer.innerText = "";
+      document.getElementById('countdown').innerText = "";
     }
   }
 
@@ -80,7 +75,6 @@
     input.value = '';
     lastSent = Date.now();
     updateUI();
-    document.getElementById('status').innerText = "Typing...";
 
     try {
       const res = await fetch('/api/chat', {
@@ -88,27 +82,26 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: text,
+          tool: document.getElementById('tool').value,
           model: document.getElementById('model').value,
           maxChars: document.getElementById('maxChars').value,
-          systemPrompt: "コードは正確に、説明は爽やかに。"
+          systemPrompt: "HoneyLemonとして振る舞って。"
         })
       });
       const data = await res.json();
       addMsg(data.choices[0].message.content, 'ai');
     } catch (e) {
-      addMsg("エラーが発生しました。", 'ai');
-    } finally {
-      document.getElementById('status').innerText = "Ready";
+      addMsg("エラー発生", 'ai');
     }
   }
 
-  function addMsg(txt, type) {
-    const box = document.getElementById('chat-box');
-    const div = document.createElement('div');
-    div.className = `msg ${type}`;
-    div.innerText = txt;
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
+  function addMsg(t, type) {
+    const b = document.getElementById('chat-box');
+    const d = document.createElement('div');
+    d.className = `msg ${type}`;
+    d.innerText = t;
+    b.appendChild(d);
+    b.scrollTop = b.scrollHeight;
   }
 </script>
 </body>
