@@ -61,14 +61,12 @@
     
     if (!text) return;
 
-    // ユーザーの発言を表示
     addMsg(text, 'user');
     input.value = '';
     btn.disabled = true;
     status.innerText = "PROCESSING...";
 
     try {
-      // 自作API（api/chat.js または api/image.js）を選択
       const endpoint = mode === 'image' ? '/api/image' : '/api/chat';
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -80,20 +78,19 @@
 
       if (mode === 'image') {
         if (data.image) {
-          // 自作APIから届いたBase64画像データを表示
+          // 自作APIから届いたBase64形式の画像データを直接imgタグに流し込む
           const div = document.createElement('div');
           div.className = 'msg ai';
           div.innerHTML = `<div>写真を生成しました:</div><img src="${data.image}" class="img-result">`;
           chatBox.appendChild(div);
         } else {
-          addMsg("生成エラー: " + (data.error || "APIの設定を確認してください"), 'ai');
+          addMsg("生成エラー: " + (data.error || "詳細不明"), 'ai');
         }
       } else {
-        // 通常の会話レスポンスを表示
         addMsg(data.choices[0].message.content, 'ai');
       }
     } catch (e) {
-      addMsg("エラーが発生しました。Vercelの環境変数(HF_TOKEN)を確認してください。", 'ai');
+      addMsg("通信エラーが発生しました。VercelのRedeployを確認してください。", 'ai');
     } finally {
       btn.disabled = false;
       status.innerText = "READY";
@@ -110,7 +107,6 @@
     b.scrollTop = b.scrollHeight;
   }
 
-  // Enterキーで送信
   document.getElementById('input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !document.getElementById('sendBtn').disabled) run();
   });
