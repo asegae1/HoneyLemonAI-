@@ -87,13 +87,24 @@
   }
 
   function addImg(url, prompt) {
-    const b = document.getElementById('chat-box');
-    const d = document.createElement('div');
-    d.className = 'msg ai';
-    d.innerHTML = `<div>画像を生成しました:</div><img src="${url}" class="img-result"><br><small style="font-size:9px; color:#999;">${prompt}</small>`;
-    b.appendChild(d);
-    b.scrollTop = b.scrollHeight;
-  }
+  const b = document.getElementById('chat-box');
+  const d = document.createElement('div');
+  d.className = 'msg ai';
+  
+  // onerror を追加して、読み込めない場合にエラーを表示
+  d.innerHTML = `
+    <div>画像を生成しました:</div>
+    <img src="${url}" class="img-result" onerror="this.nextElementSibling.innerText='画像の読み込みに失敗しました。URLを確認してください。'">
+    <div style="color:red; font-size:10px;"></div>
+    <br>
+    <small style="font-size:9px; color:#999; word-break: break-all;">
+      <strong>生成されたプロンプト:</strong> ${prompt}<br>
+      <strong>生成URL:</strong> <a href="${url}" target="_blank">ここをクリックして直接確認</a>
+    </small>`;
+  b.appendChild(d);
+  b.scrollTop = b.scrollHeight;
+}
+  
 </script>
 </body>
 </html>
