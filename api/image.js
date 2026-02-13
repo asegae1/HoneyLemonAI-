@@ -1,4 +1,3 @@
-// index.html の send 関数の中身をこれに差し替えてください
 async function send() {
   const input = document.getElementById('input');
   const text = input.value.trim();
@@ -6,36 +5,42 @@ async function send() {
   
   if (!text) return;
 
+  // ユーザーのメッセージを表示
   addMessage(text, 'user');
   input.value = '';
   
+  // 送信制限（タイマー）の開始
   lastSent = Date.now();
   updateTimer();
+  
   const status = document.getElementById('status');
-  status.innerText = "GENERATING...";
+  status.innerText = mode === 'image' ? "GENERATING IMAGE..." : "THINKING...";
+  status.classList.add('loading-dots');
 
   try {
     if (mode === 'image') {
-      // --- API（サーバー）を通さず、直接URLを作る ---
-      const seed = Math.floor(Math.random() * 1000000);
-      // Pollinations.ai の直通URL (プロンプトは日本語でもAIが解釈してくれます)
+      // --- 【最強プラン】APIを通さず、Pollinations.aiへ直結！ ---
+      // プロンプトにランダムな種(seed)を混ぜて、毎回違う絵が出るようにします
+      const seed = Math.floor(Math.random() * 999999);
       const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=512&height=512&seed=${seed}&nologo=true`;
       
-      // 画像を表示
+      // APIの返答を待たずに、すぐに画像を表示エリアに出します
       addImageMessage(imageUrl, text);
+      
     } else {
-      // 会話やコードは今まで通り api/chat を叩く
+      // 会話とコード作成は、安定している api/chat.js をそのまま使います
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text })
+        body: JSON.stringify({ prompt: text, tool: mode })
       });
       const data = await response.json();
       addMessage(data.choices[0].message.content, 'ai');
     }
   } catch (e) {
-    addMessage("エラーが発生しました。時間を置いて試してください。", 'ai');
+    addMessage("通信エラーが発生しました。時間を置いて試してください。", 'ai');
   } finally {
     status.innerText = "SYSTEM READY";
+    status.classList.remove('loading-dots');
   }
 }
