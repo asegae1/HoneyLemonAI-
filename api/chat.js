@@ -1,32 +1,27 @@
-export default async function handler(req, res) {
-  // POSTメソッド以外を弾く
+module.exports = async (req, res) => {
+  // POST以外は受け付けない
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).send('Method Not Allowed');
   }
 
-  try {
-    const apiKey = process.env.GROQ_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error('APIキーが設定されていません');
-    }
+  const { prompt } = req.body;
 
+  try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: "llama3-8b-8192",
-        messages: [{ role: "user", content: req.body.prompt }]
+        messages: [{ role: "user", content: prompt }]
       })
     });
 
     const data = await response.json();
     res.status(200).json(data);
-    
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}
+};
