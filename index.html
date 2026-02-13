@@ -2,109 +2,174 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>honeylemonai</title>
   <style>
-    body { font-family: sans-serif; background: #fffdf0; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-    .header { background: #fff; padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; }
-    .logo { font-weight: 900; font-size: 22px; background: linear-gradient(90deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-left: 6px solid #FFD700; padding-left: 12px; }
-    .config { background: #fdfae6; padding: 10px 20px; display: flex; gap: 15px; font-size: 11px; align-items: center; border-bottom: 1px solid #eee; }
-    #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-    .msg { max-width: 85%; padding: 10px 15px; border-radius: 15px; font-size: 14px; }
-    .user { align-self: flex-end; background: #FFA500; color: white; }
-    .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; }
-    .img-result { width: 100%; max-width: 400px; border-radius: 10px; border: 4px solid #FFD700; margin-top: 5px; }
-    .input-area { background: #fff; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #eee; }
-    input[type="text"] { flex: 1; padding: 10px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; }
-    button { background: #FFD700; border: none; padding: 0 25px; border-radius: 25px; font-weight: bold; cursor: pointer; }
+    /* 基本スタイル */
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fffdf0; margin: 0; display: flex; flex-direction: column; height: 100vh; color: #333; }
+    
+    /* honeylemonai ロゴ (CSSのみ) */
+    .header { background: #fff; padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; z-index: 10; }
+    .logo { font-weight: 900; font-size: 24px; background: linear-gradient(90deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-left: 6px solid #FFD700; padding-left: 12px; letter-spacing: -1px; }
+    
+    /* 設定エリア */
+    .config { background: #fdfae6; padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 15px; font-size: 11px; align-items: center; border-bottom: 1px solid #eee; }
+    .config select, .config input { border: 1px solid #ddd; border-radius: 4px; padding: 2px 5px; background: #fff; }
+
+    /* チャット表示エリア */
+    #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+    .msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.6; position: relative; word-wrap: break-word; }
+    
+    /* HoneyLemon カラーのユーザーメッセージ */
+    .user { align-self: flex-end; background: #FFA500; color: white; border-bottom-right-radius: 2px; box-shadow: 0 2px 8px rgba(255, 165, 0, 0.3); }
+    
+    /* AIメッセージ */
+    .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; border-bottom-left-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); white-space: pre-wrap; }
+    
+    /* 画像表示用 */
+    .img-container { margin-top: 8px; border-radius: 10px; overflow: hidden; border: 3px solid #FFD700; background: #eee; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+    .img-result { width: 100%; height: auto; display: block; }
+    .prompt-label { font-size: 10px; color: #999; margin-top: 5px; display: block; font-style: italic; }
+
+    /* 入力エリア */
+    .input-area { background: #fff; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #eee; align-items: center; }
+    #input { flex: 1; padding: 12px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; transition: 0.3s; font-size: 14px; }
+    #input:focus { border-color: #FFD700; }
+    
+    /* 送信ボタン */
+    button { background: #FFD700; border: none; padding: 10px 25px; border-radius: 25px; font-weight: bold; cursor: pointer; transition: 0.2s; color: #555; }
+    button:hover { background: #f0c600; transform: translateY(-1px); }
+    button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+    /* ローディングアニメーション */
+    .loading-dots::after { content: '...'; animation: dots 1.5s infinite; }
+    @keyframes dots { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
   </style>
 </head>
 <body>
 
 <div class="header">
   <div class="logo">honeylemonai</div>
-  <div id="status" style="font-size: 10px; color: #aaa;">Ready</div>
+  <div id="status" style="font-size: 10px; color: #999; font-weight: bold;">SYSTEM READY</div>
 </div>
 
 <div class="config">
-  <label>🛠️ モード: 
+  <label>🛠️ ツール: 
     <select id="mode">
-      <option value="chat">会話・コード</option>
-      <option value="image">画像生成 (無料)</option>
+      <option value="chat">会話モード</option>
+      <option value="coder">コード作成</option>
+      <option value="image">画像生成 (Hugging Face)</option>
     </select>
   </label>
-  <label>⏳ 制限(秒): <input id="rate" type="number" value="3" style="width:30px;"></label>
-  <span id="countdown"></span>
+  <label>⏳ 制限: <input id="rate" type="number" value="3" style="width:35px;">秒</label>
+  <span id="countdown" style="color: #e67e22; font-weight: bold;"></span>
 </div>
 
 <div id="chat-box"></div>
 
 <div class="input-area">
-  <input id="input" type="text" placeholder="メッセージまたは画像の説明...">
+  <input id="input" type="text" placeholder="AIに相談するか、画像の説明を入力..." autocomplete="off">
   <button id="btn" onclick="send()">送信</button>
 </div>
 
 <script>
   let lastSent = 0;
 
-  async function send() {
-    const mode = document.getElementById('mode').value;
-    const input = document.getElementById('input');
-    const text = input.value.trim();
-    if (!text) return;
+  // レート制限の監視
+  function updateTimer() {
+    const wait = document.getElementById('rate').value * 1000;
+    const now = Date.now();
+    const remaining = Math.ceil((lastSent + wait - now) / 1000);
+    const btn = document.getElementById('btn');
+    const timer = document.getElementById('countdown');
 
-    addMsg(text, 'user');
-    input.value = '';
-    document.getElementById('status').innerText = "Generating...";
-
-    try {
-      // ツール（モード）によってエンドポイントを切り替える
-      const endpoint = mode === 'image' ? '/api/image' : '/api/chat';
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text })
-      });
-      const data = await res.json();
-
-      if (mode === 'image') {
-        addImg(data.url, data.prompt);
-      } else {
-        addMsg(data.choices[0].message.content, 'ai');
-      }
-    } catch (e) {
-      addMsg("エラーが発生しました。", 'ai');
-    } finally {
-      document.getElementById('status').innerText = "Ready";
+    if (remaining > 0) {
+      btn.disabled = true;
+      timer.innerText = remaining + "s";
+      setTimeout(updateTimer, 500);
+    } else {
+      btn.disabled = false;
+      timer.innerText = "";
     }
   }
 
-  function addMsg(t, type) {
-    const b = document.getElementById('chat-box');
-    const d = document.createElement('div');
-    d.className = `msg ${type}`;
-    d.innerText = t;
-    b.appendChild(d);
-    b.scrollTop = b.scrollHeight;
+  async function send() {
+    const input = document.getElementById('input');
+    const text = input.value.trim();
+    const mode = document.getElementById('mode').value;
+    
+    if (!text) return;
+
+    // ユーザーメッセージ表示
+    addMessage(text, 'user');
+    input.value = '';
+    
+    // 待機状態
+    lastSent = Date.now();
+    updateTimer();
+    const status = document.getElementById('status');
+    status.innerText = mode === 'image' ? "GENERATING IMAGE..." : "THINKING...";
+    status.classList.add('loading-dots');
+
+    try {
+      const endpoint = mode === 'image' ? '/api/image' : '/api/chat';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: text,
+          tool: mode // chat か coder かをサーバーに伝える
+        })
+      });
+
+      const data = await response.json();
+
+      if (mode === 'image') {
+        if (data.image) {
+          addImageMessage(data.image, data.prompt);
+        } else {
+          addMessage("生成エラー: " + (data.error || "不明な理由"), 'ai');
+        }
+      } else {
+        const content = data.choices[0].message.content;
+        addMessage(content, 'ai');
+      }
+    } catch (e) {
+      addMessage("接続エラーが発生しました。設定を確認してください。", 'ai');
+    } finally {
+      status.innerText = "SYSTEM READY";
+      status.classList.remove('loading-dots');
+    }
   }
 
-  function addImg(url, prompt) {
-  const b = document.getElementById('chat-box');
-  const d = document.createElement('div');
-  d.className = 'msg ai';
-  
-  // onerror を追加して、読み込めない場合にエラーを表示
-  d.innerHTML = `
-    <div>画像を生成しました:</div>
-    <img src="${url}" class="img-result" onerror="this.nextElementSibling.innerText='画像の読み込みに失敗しました。URLを確認してください。'">
-    <div style="color:red; font-size:10px;"></div>
-    <br>
-    <small style="font-size:9px; color:#999; word-break: break-all;">
-      <strong>生成されたプロンプト:</strong> ${prompt}<br>
-      <strong>生成URL:</strong> <a href="${url}" target="_blank">ここをクリックして直接確認</a>
-    </small>`;
-  b.appendChild(d);
-  b.scrollTop = b.scrollHeight;
-}
-  
+  function addMessage(text, type) {
+    const box = document.getElementById('chat-box');
+    const div = document.createElement('div');
+    div.className = `msg ${type}`;
+    div.innerText = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function addImageMessage(base64, prompt) {
+    const box = document.getElementById('chat-box');
+    const div = document.createElement('div');
+    div.className = 'msg ai';
+    div.innerHTML = `
+      <div>画像を生成しました:</div>
+      <div class="img-container">
+        <img src="${base64}" class="img-result" alt="${prompt}">
+      </div>
+      <span class="prompt-label">Prompt: ${prompt}</span>
+    `;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // Enterキーで送信
+  document.getElementById('input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !document.getElementById('btn').disabled) send();
+  });
 </script>
 </body>
 </html>
