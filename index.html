@@ -9,14 +9,14 @@
     .header { background: #fff; padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; }
     .logo { font-weight: 900; font-size: 22px; background: linear-gradient(90deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-left: 6px solid #FFD700; padding-left: 12px; }
     .config { background: #fdfae6; padding: 10px 20px; display: flex; gap: 15px; font-size: 11px; align-items: center; border-bottom: 1px solid #eee; }
-    #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-    .msg { max-width: 85%; padding: 12px 16px; border-radius: 15px; font-size: 14px; line-height: 1.5; }
-    .user { align-self: flex-end; background: #FFA500; color: white; }
-    .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; white-space: pre-wrap; }
-    .img-result { width: 100%; max-width: 400px; border-radius: 10px; border: 4px solid #FFD700; margin-top: 5px; display: block; }
+    #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .msg { max-width: 85%; padding: 12px 16px; border-radius: 15px; font-size: 14px; line-height: 1.5; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .user { align-self: flex-end; background: #FFA500; color: white; border-bottom-right-radius: 2px; }
+    .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; border-bottom-left-radius: 2px; }
+    .img-result { width: 100%; max-width: 400px; border-radius: 10px; border: 4px solid #FFD700; margin-top: 10px; display: block; }
     .input-area { background: #fff; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #eee; }
-    input[type="text"] { flex: 1; padding: 10px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; }
-    button { background: #FFD700; border: none; padding: 0 25px; border-radius: 25px; font-weight: bold; cursor: pointer; }
+    input[type="text"] { flex: 1; padding: 12px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; }
+    button { background: #FFD700; border: none; padding: 0 25px; border-radius: 25px; font-weight: bold; cursor: pointer; color: #555; }
     button:disabled { background: #ccc; }
   </style>
 </head>
@@ -24,30 +24,21 @@
 
 <div class="header">
   <div class="logo">honeylemonai</div>
-  <div id="status" style="font-size: 10px; color: #999;">READY</div>
+  <div id="status" style="font-size: 10px; color: #999;">SYSTEM ONLINE</div>
 </div>
 
 <div class="config">
-  <label>🛠️ モード: 
-    <select id="mode">
-      <option value="chat">会話・コード</option>
-      <option value="image">画像生成</option>
-    </select>
-  </label>
-  <label>⏳ 制限: <input id="rate" type="number" value="3" style="width:30px;">秒</label>
-  <span id="countdown"></span>
+  <label>モード: <select id="mode"><option value="chat">会話</option><option value="image">画像生成</option></select></label>
 </div>
 
 <div id="chat-box"></div>
 
 <div class="input-area">
-  <input id="input" type="text" placeholder="メッセージを入力...">
+  <input id="input" type="text" placeholder="メッセージを入力..." autocomplete="off">
   <button id="btn" onclick="send()">送信</button>
 </div>
 
 <script>
-  let lastSent = 0;
-
   async function send() {
     const input = document.getElementById('input');
     const text = input.value.trim();
@@ -56,26 +47,37 @@
 
     addMsg(text, 'user');
     input.value = '';
-    document.getElementById('status').innerText = "GENERATING...";
+    document.getElementById('status').innerText = "PROCESSING...";
 
     try {
-      const endpoint = mode === 'image' ? '/api/image' : '/api/chat';
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text })
-      });
-      const data = await res.json();
-
       if (mode === 'image') {
-        addImg(data.url, data.prompt);
+        // サーバーから画像URLを取得
+        const res = await fetch('/api/image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: text })
+        });
+        const data = await res.json();
+        
+        // 【重要】URLを直接<img>にセット
+        if (data.url) {
+          addImg(data.url, text);
+        } else {
+          addMsg("URLの取得に失敗しました", 'ai');
+        }
       } else {
-        addMsg(data.choices?.[0]?.message?.content || "応答がありませんでした。", 'ai');
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: text })
+        });
+        const data = await res.json();
+        addMsg(data.choices[0].message.content, 'ai');
       }
     } catch (e) {
-      addMsg("エラーが発生しました。設定を確認してください。", 'ai');
+      addMsg("エラーが発生しました。", 'ai');
     } finally {
-      document.getElementById('status').innerText = "READY";
+      document.getElementById('status').innerText = "SYSTEM ONLINE";
     }
   }
 
@@ -92,7 +94,8 @@
     const b = document.getElementById('chat-box');
     const d = document.createElement('div');
     d.className = 'msg ai';
-    d.innerHTML = `<div>画像を生成しました:</div><img src="${url}" class="img-result"><br><small style="color:#aaa; font-size:10px;">${prompt}</small>`;
+    // <img>タグに直接URLを流し込む
+    d.innerHTML = `<div>画像を生成しました:</div><img src="${url}" class="img-result" alt="${prompt}"><br><small style="color:#ccc;">${prompt}</small>`;
     b.appendChild(d);
     b.scrollTop = b.scrollHeight;
   }
