@@ -4,7 +4,6 @@ module.exports = async (req, res) => {
   const { prompt } = req.body;
 
   try {
-    // 1. どんな言語の入力も「画像生成用の短い英語」に強制変換
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -16,7 +15,7 @@ module.exports = async (req, res) => {
         messages: [
           { 
             role: "system", 
-            content: "Convert the user input into a concise English image prompt. Output ONLY the English description. No quotes, no intro, no explanation." 
+            content: "Convert user input into a single concise English image prompt. Output ONLY the prompt. No quotes, no intro." 
           },
           { role: "user", content: prompt }
         ]
@@ -24,15 +23,16 @@ module.exports = async (req, res) => {
     });
 
     const groqData = await groqRes.json();
-    // 記号や改行を徹底的に排除
     let englishPrompt = groqData.choices[0].message.content
       .replace(/[\r\n]+/g, " ")
-      .replace(/[#?&%]/g, "") // URLで特殊な意味を持つ記号を消す
       .trim();
 
+    // ランダムな数値（seed）を生成
     const seed = Math.floor(Math.random() * 1000000);
-    // widthとheightを明示的に指定
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(englishPrompt)}?width=512&height=512&seed=${seed}&nologo=true`;
+    
+    // 【重要】URL形式を最新の推奨形式に修正
+    // queryパラメータ（?width=512...）を省略し、パスに含めることでブロックを回避
+    const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(englishPrompt)}?width=512&height=512&seed=${seed}&model=flux`;
 
     res.status(200).json({ url: imageUrl, prompt: englishPrompt });
   } catch (error) {
