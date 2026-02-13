@@ -4,6 +4,7 @@ module.exports = async (req, res) => {
   const { prompt } = req.body;
 
   try {
+    // 1. Groqで日本語を画像プロンプトに変換
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -12,29 +13,33 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
-        messages: [
-          { 
-            role: "system", 
-            content: "Convert user input into a single concise English image prompt. Output ONLY the prompt. No quotes, no intro." 
-          },
-          { role: "user", content: prompt }
-        ]
+        messages: [{ role: "system", content: "Create a short, descriptive English image prompt. Only output the prompt." },
+                   { role: "user", content: prompt }]
       })
     });
-
     const groqData = await groqRes.json();
-    let englishPrompt = groqData.choices[0].message.content
-      .replace(/[\r\n]+/g, " ")
-      .trim();
+    const englishPrompt = groqData.choices[0].message.content.trim();
 
-    // ランダムな数値（seed）を生成
-    const seed = Math.floor(Math.random() * 1000000);
-    
-    // 【重要】URL形式を最新の推奨形式に修正
-    // queryパラメータ（?width=512...）を省略し、パスに含めることでブロックを回避
-    const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(englishPrompt)}?width=512&height=512&seed=${seed}&model=flux`;
+    // 2. Hugging Face API を叩く (FLUX.1-schnellを使用)
+    const hfRes = await fetch(
+      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
+      {
+        headers: { Authorization: `Bearer ${process.env.HF_TOKEN}` },
+        method: "POST",
+        body: JSON.stringify({ inputs: englishPrompt }),
+      }
+    );
 
-    res.status(200).json({ url: imageUrl, prompt: englishPrompt });
+    if (!hfRes.ok) throw new Error("HF API Error");
+
+    // 画像データをBase64に変換してフロントで表示可能にする
+    const buffer = await hfRes.arrayBuffer();
+    const base64Image = Buffer.from(buffer).toString('base64');
+
+    res.status(200).json({ 
+      image: `data:image/webp;base64,${base64Image}`, 
+      prompt: englishPrompt 
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
