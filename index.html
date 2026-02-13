@@ -1,85 +1,69 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>honeylemonai</title>
-  <style>
-    body { font-family: sans-serif; background: #fffdf0; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-    .header { background: #fff; padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; }
-    .logo { font-weight: 900; font-size: 22px; background: linear-gradient(90deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-left: 6px solid #FFD700; padding-left: 12px; }
-    #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-    .msg { max-width: 85%; padding: 12px 16px; border-radius: 15px; font-size: 14px; line-height: 1.5; }
-    .user { align-self: flex-end; background: #FFA500; color: white; }
-    .ai { align-self: flex-start; background: #fff; border: 1px solid #eee; }
-    .img-result { width: 100%; max-width: 512px; border-radius: 10px; border: 4px solid #FFD700; margin-top: 10px; display: block; background: #eee; min-height: 200px; }
-    .input-area { background: #fff; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #eee; }
-    input { flex: 1; padding: 12px 20px; border: 2px solid #eee; border-radius: 25px; outline: none; }
-    button { background: #FFD700; border: none; padding: 0 25px; border-radius: 25px; font-weight: bold; cursor: pointer; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>honeylemonai - Image Generator</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #fffdf0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; border: 2px solid #FFD700; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .logo { font-weight: 900; font-size: 24px; background: linear-gradient(90deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
+        input { width: 85%; padding: 12px; margin-bottom: 15px; border: 2px solid #eee; border-radius: 25px; outline: none; }
+        input:focus { border-color: #FFD700; }
+        button { padding: 12px 30px; background: #FFD700; color: #555; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #FFA500; color: white; }
+        .image-box { margin-top: 20px; min-height: 300px; border: 2px dashed #FFD700; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #fafafa; overflow: hidden; }
+        img { max-width: 100%; height: auto; display: block; }
+        .loading-text { color: #FFA500; font-weight: bold; }
+    </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="logo">honeylemonai</div>
-  <div id="status">Ready</div>
-</div>
+<div class="container">
+    <div class="logo">honeylemonai</div>
+    <p style="font-size: 13px; color: #666;">プロンプトを入力して画像を生成</p>
+    
+    <input type="text" id="promptInput" placeholder="例: a cute lemon character, 3d render" value="a cute lemon character">
+    <br>
+    <button onclick="generateImage()">画像を生成する</button>
 
-<div id="chat-box"></div>
-
-<div class="input-area">
-  <select id="mode"><option value="chat">会話</option><option value="image">画像</option></select>
-  <input id="input" type="text" placeholder="入力を待ってるよ...">
-  <button onclick="send()">送信</button>
+    <div class="image-box" id="imageBox">
+        <p id="statusText">ここに画像が表示されます</p>
+    </div>
 </div>
 
 <script>
-  async function send() {
-    const input = document.getElementById('input');
-    const text = input.value.trim();
-    const mode = document.getElementById('mode').value;
-    if (!text) return;
+    function generateImage() {
+        const prompt = document.getElementById('promptInput').value;
+        const imageBox = document.getElementById('imageBox');
 
-    addMsg(text, 'user');
-    input.value = '';
+        if (!prompt) {
+            alert("プロンプトを入力してください！");
+            return;
+        }
 
-    try {
-      if (mode === 'image') {
-        // --- サーバー(API)のエラーを回避するため、ここで直接URLを作る ---
-        const seed = Math.floor(Math.random() * 999999);
-        const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=512&height=512&seed=${seed}&nologo=true`;
+        // 状態のリセット
+        imageBox.innerHTML = '<p class="loading-text">生成中... (10秒ほどかかる場合があります)</p>';
+
+        const seed = Math.floor(Math.random() * 1000000);
         
-        const box = document.getElementById('chat-box');
-        const div = document.createElement('div');
-        div.className = 'msg ai';
-        div.innerHTML = `
-          <div>生成中... (少し時間がかかるよ)</div>
-          <img src="${imageUrl}" class="img-result" onload="this.previousElementSibling.innerText='生成完了！'" onerror="this.previousElementSibling.innerText='ごめん、画像が作れなかった...'">
-        `;
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
-      } else {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: text })
-        });
-        const data = await res.json();
-        addMsg(data.choices[0].message.content, 'ai');
-      }
-    } catch (e) {
-      addMsg("通信エラーが起きたみたい。", 'ai');
-    }
-  }
+        // 【修正済み】URLの組み立て。 /p/ を追加し、テンプレートリテラルを修正
+        const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&model=flux`;
 
-  function addMsg(t, type) {
-    const b = document.getElementById('chat-box');
-    const d = document.createElement('div');
-    d.className = `msg ${type}`;
-    d.innerText = t;
-    b.appendChild(d);
-    b.scrollTop = b.scrollHeight;
-  }
+        const img = new Image();
+        img.src = imageUrl;
+        img.alt = "Generated AI Image";
+
+        img.onload = function() {
+            imageBox.innerHTML = ''; 
+            imageBox.appendChild(img);
+        };
+
+        img.onerror = function() {
+            imageBox.innerHTML = '<p style="color:red;">エラーが発生しました。もう一度試してね！</p>';
+        };
+    }
 </script>
+
 </body>
 </html>
