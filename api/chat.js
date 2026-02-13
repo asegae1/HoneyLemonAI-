@@ -1,7 +1,7 @@
 module.exports = async (req, res) => {
-  // POST以外は受け付けない
+  // POSTメソッド以外を無視
   if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const { prompt } = req.body;
