@@ -5,17 +5,33 @@
   <button onclick="send()">送信</button>
   <div id="out"></div>
 
-  <script>
-    async function send() {
-      const p = document.getElementById('input').value;
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: p })
-      });
-      const data = await res.json();
-      document.getElementById('out').innerText = data.choices[0].message.content;
+<script>
+async function send() {
+  const p = document.getElementById('input').value;
+  const out = document.getElementById('out');
+  out.innerText = "通信中...";
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: p })
+    });
+    
+    const data = await res.json();
+    console.log("受信データ:", data); // コンソールで中身を確認
+
+    if (data.error) {
+      out.innerText = "Error: " + JSON.stringify(data.error);
+    } else if (data.choices && data.choices[0]) {
+      out.innerText = data.choices[0].message.content;
+    } else {
+      out.innerText = "不明なレスポンス形式です。";
     }
-  </script>
+  } catch (e) {
+    out.innerText = "エラーが発生しました: " + e.message;
+  }
+}
+</script>
 </body>
 </html>
